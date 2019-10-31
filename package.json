@@ -4,11 +4,16 @@
   "private": true,
   "dependencies": {
     "firebase": "^7.2.1",
-    "react": "^16.6.3",
+    "react": "^16.11.0",
+    "react-async": "^9.0.0",
     "react-dom": "^16.6.3",
+    "react-redux": "^7.1.1",
     "react-router-dom": "^4.3.1",
     "react-scripts": "2.1.1",
-    "recompose": "^0.30.0"
+    "recompose": "^0.30.0",
+    "redux": "^4.0.4",
+    "redux-promise-middleware": "^6.1.1",
+    "redux-thunk": "^2.3.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -21,5 +26,10 @@
     "not dead",
     "not ie <= 11",
     "not op_mini all"
-  ]
+  ],
+  "devDependencies": {
+    "@babel/plugin-transform-runtime": "^7.6.2",
+    "@babel/preset-env": "^7.6.3",
+    "@babel/runtime": "^7.6.3"
+  }
 }

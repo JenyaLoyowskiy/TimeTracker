@@ -5,3 +5,5 @@ export const HOME = '/home';
 export const ACCOUNT = '/account';
 export const ADMIN = '/admin';
 export const PASSWORD_FORGET = '/pw-forget';
+export const trelloToken = "2e79ba008b8555e9530f1ca6ed10a0fa91798701a1e61ff460cd5744c8878f13";
+export const trelloKey = "bdb1ed23d7745b49551e213d4c91e28e";

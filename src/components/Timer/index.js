@@ -1,80 +1,191 @@
 import { withFirebase } from '../Firebase';
 import React from 'react';
-class Timer extends React.Component{
+import * as ROUTS from '../../constants/routes.js';
+
+class TimerIndicator extends React.Component{
     state = {
-        timerValue:'00:00:00',
+        timerValue: '00:00:00',
         sec:0,
         min:0,
         hour:0,
-        ImageSrc:'/img/play-btn.png',
-        startedAt: undefined,
-        endedAt: undefined,
-        projectSelector: null,
-        taskSelector: null,
-        timeForUpdate: 0,
-        timeTracker: null
+        timeTracker: null,
+        imageSrc: './img/play-btn.png',
+        startedAt: null,
+        endedAt: null,
+        isGoing: true
     };
     constructor(props){
         super(props);
-        this.isGoing = false;
     }
-    startTimer(){
-        let { sec, min, hour, timeForUpdate } = this.state;
-        this.setState({ImageSrc: './img/pause-btn.png'});
-        this.state.startedAt = new Date();
-        this.state.timeTracker = setInterval(()=>{
-            sec++;
-            if(sec === 60){sec = 0; min++; timeForUpdate++};
-            if(min === 60){min = 0; hour++};
-            let newSec = '00' + ((sec).toString());
-            newSec = newSec.slice(newSec.length - 2);
-            let newMin = '00' + ((min).toString());
-            newMin = newMin.slice(newMin.length - 2);
-            let newHour = '00' + ((hour).toString());
-            newHour = newHour.slice(newHour.length - 2);
-            this.setState({timerValue: newHour+':'+newMin+':'+newSec});
-            if (timeForUpdate > 14){
-                let { projectSelector, taskSelector, startedAt, endedAt, timerValue } = this.state;
-                this.save({project: projectSelector, task: taskSelector, startedAt: startedAt, endedAt: new Date(), timer: timerValue});
-                timeForUpdate = 0;
-            }
-        },1000);
-    }
-    stopTimer(){
-        this.state.endedAt = new Date();
-        this.saveAndClearTracker();
-        this.setState({ImageSrc: '/img/play-btn.png'});
-    }
+
     newTimer(){
-        if (!this.state.isGoing){
-            if (this.state.projectSelector){
+        if (this.state.isGoing){
+            if (this.props.projectSelected && this.props.projectSelected !== 'Select the project' && this.props.taskSelected && this.props.taskSelected !== 'Select the task') {
                 this.startTimer();
                 this.state.isGoing = !this.state.isGoing;
             } else {
-                alert('Please select a project');
+                alert('Select project and task please')
             }
         } else {
+            let time = {
+                startedAt: this.state.startedAt,
+                endedAt: new Date(),
+                time: this.state.timerValue
+            };
+            this.props.save(time);
             this.stopTimer();
             this.state.isGoing = !this.state.isGoing;
         }
     }
 
-    onChange = event => {
-        this.setState({ [event.target.name]: event.target.value });
+    startTimer(){
+        let { sec, min, hour, timeForUpdate } = this.state;
+        this.setState({imageSrc: './img/pause-btn.png'});
+        this.state.startedAt = new Date();
+        this.state.timeTracker = setInterval(()=>{
+            sec++;
+            if(sec === 60){sec = 0; min++; timeForUpdate++};
+            if(min === 60){min = 0; hour++};
+            let newSec = ('00' + sec.toString()).substr(-2);
+            let newMin = ('00' + min.toString()).substr(-2);
+            let newHour = ('00' + hour.toString()).substr(-2);
+            this.setState({timerValue: newHour+':'+newMin+':'+newSec});
+        },1000);
+    }
+
+    stopTimer(){
+        this.setState({imageSrc: './img/play-btn.png', timerValue: '00:00:00'});
+        clearInterval(this.state.timeTracker);
+    }
+
+    render(){
+        return(
+            <div className={'timeWrapper'}>
+                <div className={'tracker'}>
+                    {this.state.timerValue}
+                </div>
+                <img className={'playImage'} src={this.state.imageSrc} onClick={ this.newTimer.bind(this) }/>
+            </div>
+        )
+    }
+}
+
+class TaskSelectors extends React.Component{
+    state = {
+        data: [],
+        projects: ['project1', 'project2', 'project3']
     };
+
+    constructor(props){
+        super(props);
+        this.getData();
+    }
+
+    async getData(){
+        try {
+            const response = await fetch(`https://api.trello.com/1/boards/SrhQGIYA?cards=all`);
+            if (!response.ok) {
+                throw Error(response.statusText);
+            }
+            const json = await response.json();
+            json.cards = json.cards.filter(el=>el.closed === false);
+            this.setState({ data: Array.from(json.cards) });
+            console.log(json.cards);
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    renderProjects(){
+        const { projects } = this.state;
+        return projects.map(el=>{
+            return (
+                <option key={Math.random()}>{el}</option>
+            )
+        })
+    }
+
+    renderTasks(){
+        const { data } = this.state;
+        return data.map(el=>{
+            return (
+                <option key={Math.random()}>{el.name}</option>
+            )
+        })
+    }
+
+    render(){
+        return(
+            <div className={'selectWrapper'}>
+                <select name={'projectSelector'} className={'projectSelector'} onChange={this.props.updateSelectors} value={this.props.projectSelected ? this.props.projectSelected : ''}>
+                    <option>Select the project</option>
+                    { this.renderProjects() }
+                </select>
+                <select name={'taskSelector'} className={'taskSelector'} onChange={this.props.updateSelectors} value={this.props.taskSelected ? this.props.taskSelected : ''}>
+                    <option>Select the task</option>
+                    { this.renderTasks() }
+                </select>
+            </div>
+        )
+    }
+}
+
+class Timer extends React.Component{
+    state = {
+        taskSelector: null,
+        projectSelector: null,
+    };
+    constructor(props){
+        super(props);
+        this.updateData = this.updateData.bind(this);
+    }
+
+    updateData(event){
+        this.setState({[event.target.name]: event.target.value});
+        console.log(event.target.name, event.target.value);
+    }
 
     save(obj){
         const { email } = this.props.firebase.auth.currentUser;
+        const { taskSelector, projectSelector} = this.state;
         if (this.state.timerValue !== '00:00:00'){
-            this.props.firebase.db.collection("users").doc(`${email}`).collection('time').doc(`${this.state.startedAt}`).set({time: obj});
+            this.props.firebase.db.collection("users").doc(`${email}`).collection(`${projectSelector}`).doc(`${taskSelector}`).collection('time').add({time: obj});
+            // this.saveToTrello();
         }
     }
 
     saveAndClearTracker() {
-            let { projectSelector, taskSelector, startedAt, endedAt, timerValue } = this.state;
+            let { startedAt, endedAt, timerValue } = this.state;
             this.setState({ImageSrc: './img/play-btn.png', timerValue: '00:00:00', sec:0, min:0, hour:0});
-            this.save({project: projectSelector, task: taskSelector, startedAt: startedAt, endedAt: endedAt, timer: timerValue});
+            this.save({startedAt: startedAt, endedAt: endedAt, timer: timerValue});
             clearInterval(this.state.timeTracker);
+    }
+
+    saveToTrello(){
+        const select = document.querySelector('.taskSelector').value;
+        const currentCard = this.state.data.filter(el=>el.name == select);
+        let descr = currentCard[0].desc;
+        let text;
+        if (currentCard[0].desc[currentCard[0].desc.length - 3] === ':'){
+            text = descr.slice(0, descr.length - 9) + ' ' + this.state.timerValue;
+        } else {
+            text = descr + ' ' + this.state.timerValue;
+        }
+
+        console.log(currentCard);
+        var data = null;
+
+        var xhr = new XMLHttpRequest();
+
+        xhr.addEventListener("readystatechange", () => {
+            if (this.readyState === this.DONE) {
+                console.log(this.responseText);
+            }
+        });
+
+        xhr.open("PUT", `https://api.trello.com/1/cards/${currentCard[0].id}?desc=${text}&key=${ROUTS.trelloKey}&token=${ROUTS.trelloToken}`);
+
+        xhr.send(data);
     }
 
     getData() {
@@ -92,31 +203,21 @@ class Timer extends React.Component{
         });
     }
 
-    // showPopup(text) {
-    //     let popup = document.querySelector('.popup');
-    //     popup.innerHTML = text;
-    //     popup.style.top = 0;
-    //     setTimeout(()=>{
-    //         popup.style.top = -50;
-    //     },1500)
-    // }
-
     render(){
         return(
             <div className={'timeTracker form'}>
-                <div className={'tracker'}>{this.state.timerValue}</div>
-                <img className={'playImage'} src={this.state.ImageSrc} onClick={this.newTimer.bind(this)}/>
-                    <select className={'projectSelector'} name={'projectSelector'} onChange={this.onChange}>
-                        <option>Select project</option>
-                        <option>Mobile app</option>
-                        <option>Ben's project</option>
-                    </select>
-                    <select className={'taskSelector'} name={'taskSelector'} onChange={this.onChange}>
-                        <option>Select task</option>
-                        <option>Task 1</option>
-                        <option>Task 2</option>
-                    </select>
-                <button onClick={this.getData.bind(this)}>Get data</button>
+                <TimerIndicator
+                    updateData={this.updateData}
+                    startTimer={this.changeTimerValue}
+                    save={(obj)=>{this.save(obj)}}
+                    projectSelected={this.state.projectSelector}
+                    taskSelected={this.state.taskSelector}
+                />
+                <TaskSelectors
+                    updateSelectors={this.updateData}
+                    projectSelected={this.state.projectSelector}
+                    taskSelected={this.state.taskSelector}
+                />
             </div>
         )
     }
